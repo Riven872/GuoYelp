@@ -1,11 +1,8 @@
 package com.Guo.GuoYelp.controller;
 
 
-import cn.hutool.core.bean.BeanUtil;
 import com.Guo.GuoYelp.dto.LoginFormDTO;
 import com.Guo.GuoYelp.dto.Result;
-import com.Guo.GuoYelp.dto.UserDTO;
-import com.Guo.GuoYelp.entity.User;
 import com.Guo.GuoYelp.entity.UserInfo;
 import com.Guo.GuoYelp.service.IUserInfoService;
 import com.Guo.GuoYelp.service.IUserService;
@@ -20,8 +17,6 @@ import javax.servlet.http.HttpSession;
  * <p>
  * 前端控制器
  * </p>
- *
- * @author 虎哥
  */
 @Slf4j
 @RestController
@@ -39,7 +34,7 @@ public class UserController {
      */
     @PostMapping("code")
     public Result sendCode(@RequestParam("phone") String phone, HttpSession session) {
-        // 发送短信验证码并保存验证码
+        //发送短信验证码并保存验证码
         return userService.sendCode(phone, session);
     }
 
@@ -49,7 +44,7 @@ public class UserController {
      */
     @PostMapping("/login")
     public Result login(@RequestBody LoginFormDTO loginForm, HttpSession session){
-        // 实现登录功能
+        //实现登录功能
         return userService.login(loginForm, session);
     }
 
@@ -63,11 +58,14 @@ public class UserController {
         return Result.fail("功能未完成");
     }
 
+    /**
+     * 获取当前登录的用户信息
+     * @return
+     */
     @GetMapping("/me")
     public Result me(){
-        // 获取当前登录的用户并返回
-        UserDTO user = UserHolder.getUser();
-        return Result.ok(user);
+        //获取当前登录的用户并返回
+        return Result.ok(UserHolder.getUser());
     }
 
     @GetMapping("/info/{id}")
@@ -82,27 +80,5 @@ public class UserController {
         info.setUpdateTime(null);
         // 返回
         return Result.ok(info);
-    }
-
-    @GetMapping("/{id}")
-    public Result queryUserById(@PathVariable("id") Long userId){
-        // 查询详情
-        User user = userService.getById(userId);
-        if (user == null) {
-            return Result.ok();
-        }
-        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
-        // 返回
-        return Result.ok(userDTO);
-    }
-
-    @PostMapping("/sign")
-    public Result sign(){
-        return userService.sign();
-    }
-
-    @GetMapping("/sign/count")
-    public Result signCount(){
-        return userService.signCount();
     }
 }
