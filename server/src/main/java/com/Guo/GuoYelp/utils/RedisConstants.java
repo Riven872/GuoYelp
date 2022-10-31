@@ -1,10 +1,10 @@
 package com.Guo.GuoYelp.utils;
 
 public class RedisConstants {
-    public static final String LOGIN_CODE_KEY = "login:code:";
-    public static final Long LOGIN_CODE_TTL = 2L;
-    public static final String LOGIN_USER_KEY = "login:token:";
-    public static final Long LOGIN_USER_TTL = 36000L;
+    public static final String LOGIN_CODE_KEY = "login:code:";//用户登录时，redis的key值业务前缀
+    public static final Long LOGIN_CODE_TTL = 2L;//用户登录时，验证码k-v过期时间
+    public static final String LOGIN_USER_KEY = "login:token:";//用户登录时，Redis保存用户信息的前缀
+    public static final Long LOGIN_USER_TTL = 36000L;//用户登录时，user信息k-v过期时间
 
     public static final Long CACHE_NULL_TTL = 2L;
 
