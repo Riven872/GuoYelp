@@ -9,7 +9,7 @@ spring:
     username: root
     password: 123
   redis:
-    host: 192.168.63.100
+    host: 192.168.31.100 #灵活host地址 home:192.168.31.100 com:192.168.63.100
     port: 6379
     password: 123
     lettuce:

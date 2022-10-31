@@ -9,7 +9,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *
  */
 @Configuration
-public class MVCConfig implements WebMvcConfigurer {
+public class MvcConfig implements WebMvcConfigurer {
     /**
      * 添加自定义的拦截器
      * @param registry
