@@ -1,6 +1,7 @@
 package com.Guo.GuoYelp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.RandomUtil;
 import com.Guo.GuoYelp.dto.LoginFormDTO;
@@ -20,6 +21,7 @@ import com.Guo.GuoYelp.utils.SystemConstants;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -100,16 +102,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String token = UUID.randomUUID().toString(true);
         //将User对象转为HashMap存储
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
-        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO);
+        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
+                CopyOptions.create()
+                        .setIgnoreNullValue(true)
+                        .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString()));
         //存储User到Redis中
         stringRedisTemplate.opsForHash().putAll(LOGIN_USER_KEY + token, userMap);
         //设置token有效期为半小时
         stringRedisTemplate.expire(LOGIN_USER_KEY + token, LOGIN_USER_TTL, TimeUnit.MINUTES);
         //endregion
 
-        //返回Token
+        //登录成功，则将验证码从Redis中删除
+        stringRedisTemplate.delete(LOGIN_CODE_KEY + phone);
 
-        return Result.ok();
+        //返回Token
+        return Result.ok(token);
     }
 
     /**
