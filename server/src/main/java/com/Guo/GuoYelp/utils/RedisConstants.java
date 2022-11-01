@@ -6,7 +6,7 @@ public class RedisConstants {
     public static final String LOGIN_USER_KEY = "login:token:";//用户登录时，Redis保存用户信息的前缀
     public static final Long LOGIN_USER_TTL = 36000L;//用户登录时，user信息k-v过期时间
 
-    public static final Long CACHE_NULL_TTL = 2L;
+    public static final Long CACHE_NULL_TTL = 2L;//存入空值的TTL
 
     public static final Long CACHE_SHOP_TTL = 30L;
     public static final String CACHE_SHOP_KEY = "cache:shop:";

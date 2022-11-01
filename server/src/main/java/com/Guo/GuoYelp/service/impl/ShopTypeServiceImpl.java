@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static com.Guo.GuoYelp.utils.RedisConstants.CACHE_SHOP_KEY;
+import static com.Guo.GuoYelp.utils.RedisConstants.CACHE_SHOP_TTL;
 
 /**
  * <p>
@@ -49,7 +51,7 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
             return Result.fail("店铺类型不存在");
         }
         //数据库中存在则写入Redis中
-        stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY, JSONUtil.toJsonStr(shopTypes));
+        stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY, JSONUtil.toJsonStr(shopTypes),CACHE_SHOP_TTL, TimeUnit.MINUTES);
         //返回从数据库中查询到的数据
         return Result.ok(shopTypes);
     }
