@@ -13,10 +13,8 @@ import java.time.LocalDateTime;
 
 /**
  * <p>
- * 
+ * 优惠券表
  * </p>
- *
-
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
@@ -78,13 +76,13 @@ public class Voucher implements Serializable {
     private Integer stock;
 
     /**
-     * 生效时间
+     * 生效时间（即开放购买时间）
      */
     @TableField(exist = false)
     private LocalDateTime beginTime;
 
     /**
-     * 失效时间
+     * 失效时间（即关闭购买时间）
      */
     @TableField(exist = false)
     private LocalDateTime endTime;

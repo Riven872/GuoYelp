@@ -58,12 +58,12 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         //Shop shop = this.setWithLogicalExpire(id);
 
         //工具类改良存储空对象解决缓存穿透
-        //Shop shop = cacheClient
-        //        .setWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, queryId -> this.getById(queryId), CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        Shop shop = cacheClient
+                .setWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, queryId -> this.getById(queryId), CACHE_SHOP_TTL, TimeUnit.MINUTES);
 
         //工具类改良逻辑过期解决缓存击穿
-        Shop shop = cacheClient
-                .setWithLogicalExpire(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        //Shop shop = cacheClient
+        //        .setWithLogicalExpire(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
 
         if (shop == null) {
             return Result.fail("商铺不存在");

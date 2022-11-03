@@ -12,10 +12,8 @@ import java.time.LocalDateTime;
 
 /**
  * <p>
- * 
+ * 优惠券订单表
  * </p>
- *
-
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
