@@ -3,6 +3,7 @@ package com.Guo.GuoYelp.utils;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.Guo.GuoYelp.dto.UserDTO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 自定义拦截器
  */
+@Slf4j
 public class LoginInterceptor implements HandlerInterceptor {
 
     /**
@@ -28,6 +30,7 @@ public class LoginInterceptor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        log.info("请求的url：{}", request.getRequestURI());
         //该拦截器用来判断是否有用户
         if (UserHolder.getUser() == null) {
             response.setStatus(401);
