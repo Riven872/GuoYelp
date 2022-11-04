@@ -8,9 +8,11 @@ import com.Guo.GuoYelp.mapper.VoucherOrderMapper;
 import com.Guo.GuoYelp.service.ISeckillVoucherService;
 import com.Guo.GuoYelp.service.IVoucherOrderService;
 import com.Guo.GuoYelp.utils.RedisIdWorker;
+import com.Guo.GuoYelp.utils.SimpleRedisLock;
 import com.Guo.GuoYelp.utils.UserHolder;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     @Resource
     private IVoucherOrderService voucherOrderService;
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     /**
      * 抢购秒杀券
@@ -59,14 +64,43 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("库存不足");
         }
         Long userId = UserHolder.getUser().getId();
-        synchronized (userId.toString().intern()) {
-            //获取事务的代理对象
-            //IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
-            //return proxy.createVoucherOrder(voucherId);
+
+        //region 基于Redis的分布式锁解决分布式或集群模式下的一人一单问题
+        //创建锁对象
+        SimpleRedisLock lock = new SimpleRedisLock(stringRedisTemplate, "order:" + userId);
+        //获取锁
+        boolean isLock = lock.tryLock(1000);
+        //判断是否获取锁成功
+        if (!isLock) {
+            //获取失败，返回错误（可以根据业务场景选择返回错误或重试）
+            return Result.fail("不允许重复下单");
+        }
+        //获取成功，创建订单
+        try {
             return voucherOrderService.createVoucherOrder(voucherId);
         }
+        //无论是否异常，一定要释放锁
+        finally {
+            lock.unLock();
+        }
+        //endregion
+
+        //region 悲观锁解决单体项目下的一人一单问题
+        //synchronized (userId.toString().intern()) {
+        //    //获取事务的代理对象
+        //    //IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+        //    //return proxy.createVoucherOrder(voucherId);
+        //
+        //    return voucherOrderService.createVoucherOrder(voucherId);
+        //}
+        //endregion
     }
 
+    /**
+     * 一人一单创建订单
+     * @param voucherId
+     * @return
+     */
     @Transactional
     public Result createVoucherOrder(Long voucherId) {
         //一人一单
