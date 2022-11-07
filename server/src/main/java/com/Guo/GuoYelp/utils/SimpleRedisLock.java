@@ -1,8 +1,13 @@
 package com.Guo.GuoYelp.utils;
 
 import cn.hutool.core.lang.UUID;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -20,6 +25,14 @@ public class SimpleRedisLock implements ILock {
 
     private static final String KEY_PREFIX = "lock:";//锁的统一前缀
     private static final String ID_PREFIX = UUID.randomUUID().toString(true) + "-";//进程的唯一标识前缀
+    private static final DefaultRedisScript<Long> UNLOCK_SCRIPT;//提前将脚本加载进来，防止运行时没必要的IO流操作
+
+    static {
+        //使用静态代码块进行脚本的初始化
+        UNLOCK_SCRIPT = new DefaultRedisScript<>();
+        UNLOCK_SCRIPT.setLocation(new ClassPathResource("unlock.lua"));//设置脚本位置
+        UNLOCK_SCRIPT.setResultType(Long.class);//设置返回值
+    }
 
     /**
      * 尝试获取锁（非阻塞式）
@@ -42,13 +55,19 @@ public class SimpleRedisLock implements ILock {
      */
     @Override
     public void unLock() {
-        //获取当前线程的唯一标识
-        String threadId = ID_PREFIX + Thread.currentThread().getId();
-        //获取当前锁的唯一标识
-        String lockId = stringRedisTemplate.opsForValue().get(KEY_PREFIX + this.name);
-        //一致则释放锁
-        if(threadId.equals(lockId)) {
-            stringRedisTemplate.delete(KEY_PREFIX + this.name);
-        }
+        //region 线程一致时进行释放锁
+        ////获取当前线程的唯一标识
+        //String threadId = ID_PREFIX + Thread.currentThread().getId();
+        ////获取当前锁的唯一标识
+        //String lockId = stringRedisTemplate.opsForValue().get(KEY_PREFIX + this.name);
+        ////一致则释放锁
+        //if(threadId.equals(lockId)) {
+        //    stringRedisTemplate.delete(KEY_PREFIX + this.name);
+        //}
+        //endregion
+
+        //region 采用Lua脚本进行原子性释放锁
+        stringRedisTemplate.execute(UNLOCK_SCRIPT, Collections.singletonList(KEY_PREFIX + this.name), ID_PREFIX + Thread.currentThread().getId());
+        //endregion
     }
 }

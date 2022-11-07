@@ -11,6 +11,8 @@ import com.Guo.GuoYelp.utils.RedisIdWorker;
 import com.Guo.GuoYelp.utils.SimpleRedisLock;
 import com.Guo.GuoYelp.utils.UserHolder;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -38,6 +41,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private RedissonClient redissonClient;
 
     /**
      * 抢购秒杀券
@@ -65,24 +71,37 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         Long userId = UserHolder.getUser().getId();
 
-        //region 基于Redis的分布式锁解决分布式或集群模式下的一人一单问题
-        //创建锁对象
-        SimpleRedisLock lock = new SimpleRedisLock(stringRedisTemplate, "order:" + userId);
-        //获取锁
-        boolean isLock = lock.tryLock(1000);
-        //判断是否获取锁成功
+        //region 基于Redisson实现单体Redis的分布式简单锁
+        RLock lock = redissonClient.getLock("lock:order:" + userId);//创建锁对象
+        boolean isLock = lock.tryLock();//获取锁，无参默认不等待，失败不重试，超时时间30s
         if (!isLock) {
-            //获取失败，返回错误（可以根据业务场景选择返回错误或重试）
-            return Result.fail("不允许重复下单");
+            return Result.fail("不允许重复下单");//获取锁失败，直接返回
         }
-        //获取成功，创建订单
         try {
             return voucherOrderService.createVoucherOrder(voucherId);
+        } finally {
+            lock.unlock();//释放锁
         }
-        //无论是否异常，一定要释放锁
-        finally {
-            lock.unLock();
-        }
+        //endregion
+
+        //region 基于Redis的分布式锁解决分布式或集群模式下的一人一单问题
+        ////创建锁对象
+        //SimpleRedisLock lock = new SimpleRedisLock(stringRedisTemplate, "order:" + userId);
+        ////获取锁
+        //boolean isLock = lock.tryLock(1000);
+        ////判断是否获取锁成功
+        //if (!isLock) {
+        //    //获取失败，返回错误（可以根据业务场景选择返回错误或重试）
+        //    return Result.fail("不允许重复下单");
+        //}
+        ////获取成功，创建订单
+        //try {
+        //    return voucherOrderService.createVoucherOrder(voucherId);
+        //}
+        ////无论是否异常，一定要释放锁
+        //finally {
+        //    lock.unLock();
+        //}
         //endregion
 
         //region 悲观锁解决单体项目下的一人一单问题
@@ -98,6 +117,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     /**
      * 一人一单创建订单
+     *
      * @param voucherId
      * @return
      */
