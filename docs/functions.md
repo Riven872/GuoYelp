@@ -394,5 +394,62 @@
     - 没有消息漏读的风险
     - 有消息确认机制，保证消息至少被消费一次
 
+- 大概流程（伪码）：
+
+    ```java
+    while(true) {
+        //尝试监听队列，使用阻塞模式，最长等待2000毫秒，使用>表示读取下一个未消费的消息
+        Object msg = redis.call("XREADGROUP GROUP g1 c1  COUNT 1 BLOCK 2000 STREAMS s1 >");
+        //null说明队列中没有消息，continue继续下一次
+        if(msg == null) {
+            continue;
+        }
+        try {
+            //取到了消息，进行处理，处理完成之后ACK
+            handleMsg(msg);
+        } catch(Exception e) {
+            while(true) {
+                //有异常，消息放到pending-list中，已消费但是未确认，因此用0依次取pending-list的消息
+                Object msg = redis.call("XREADGROUP GROUP g1 c1  COUNT 1 BLOCK 2000 STREAMS s1 0");
+                //null说明没有异常消息，所有消息已经确认，结束循环
+                if(msg == null) {
+                    break;
+                }
+                try {
+                    //说明有异常消息，再次处理
+                    handleMsg(msg);
+                } catch(Exception e) {
+                    //再次出现异常，记录日志，再次循环
+                    continue;
+                }
+            }
+        }
+    }
+    ```
+
     
+
+###### 8、基于Redis的Stream结构作为消息队列，实现异步秒杀下单
+
+- 需求：
+
+    - 创建一个Stream类型的消息队列，名为stream.orders
+
+        ```shell
+        #创建名为stream.orders的消息队列
+        #创建名为g1的消费者组
+        #新队列，因此从0开始
+        #队列和组不存在时，通过MKSTREAM进行创建
+        XGROUP CREATE stream.orders g1 0 MKSTREAM
+        ```
+
+    - 修改之前的秒杀下单Lua脚本，在认定有抢购资格之后，直接向stream.orders中添加消息，内容包含voucherId、userId、orderId
+
+    - 项目启动时，开启一个线程任务，尝试获取stream.orders中的消息，完成下单
+
+    - 
+
+
+
+
 
