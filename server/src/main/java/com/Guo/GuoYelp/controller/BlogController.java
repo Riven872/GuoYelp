@@ -19,8 +19,6 @@ import java.util.List;
  * <p>
  * 前端控制器
  * </p>
- *
-
  */
 @RestController
 @RequestMapping("/blog")
@@ -35,6 +33,7 @@ public class BlogController {
     public Result saveBlog(@RequestBody Blog blog) {
         // 获取登录用户
         UserDTO user = UserHolder.getUser();
+        //前端已经提交了商铺id、标题、图片、内容，因此这里只需要再添加用户id即可保存
         blog.setUserId(user.getId());
         // 保存探店博文
         blogService.save(blog);
@@ -71,7 +70,7 @@ public class BlogController {
         // 获取当前页数据
         List<Blog> records = page.getRecords();
         // 查询用户
-        records.forEach(blog ->{
+        records.forEach(blog -> {
             Long userId = blog.getUserId();
             User user = userService.getById(userId);
             blog.setName(user.getNickName());

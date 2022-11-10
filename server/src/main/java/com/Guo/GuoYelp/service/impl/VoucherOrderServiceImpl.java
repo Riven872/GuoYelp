@@ -87,6 +87,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     //}
     //endregion
 
+    //region 消息队列处理方法
     private class VoucherOrderHandler implements Runnable {
         @Override
         public void run() {
@@ -142,10 +143,16 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                     stringRedisTemplate.opsForStream().acknowledge("stream.orders", "g1", record.getId());//record.getId()为消息的id
                 } catch (Exception e) {
                     log.error("处理pending-list订单异常消息：" + e);//不用递归，有while(true)的原因下次还会获取到处理异常的消息
+                    try {
+                        Thread.sleep(20);
+                    } catch (InterruptedException interruptedException) {
+                        interruptedException.printStackTrace();
+                    }
                 }
             }
         }
     }
+    //endregion
 
     /**
      * 该类初始化完毕之后执行，新线程从队列中开始取
@@ -351,6 +358,15 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         //return Result.ok(orderId);
         //endregion
 
+        //扣减库存
+        seckillVoucherService.update()
+                .setSql("stock = stock - 1")
+                .eq("voucher_id", voucherOrder.getVoucherId())
+                .update();
+        //创建订单
+        voucherOrder.setId(voucherOrder.getId());//订单id
+        voucherOrder.setUserId(voucherOrder.getUserId());//用户id
+        voucherOrder.setVoucherId(voucherOrder.getVoucherId());//代金券id
         this.save(voucherOrder);
     }
 }
