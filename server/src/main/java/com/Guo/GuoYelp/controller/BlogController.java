@@ -16,9 +16,7 @@ import javax.annotation.Resource;
 import java.util.List;
 
 /**
- * <p>
- * 前端控制器
- * </p>
+ * 探店模块
  */
 @RestController
 @RequestMapping("/blog")
@@ -26,9 +24,13 @@ public class BlogController {
 
     @Resource
     private IBlogService blogService;
-    @Resource
-    private IUserService userService;
 
+    /**
+     * 发布探店笔记
+     *
+     * @param blog
+     * @return
+     */
     @PostMapping
     public Result saveBlog(@RequestBody Blog blog) {
         // 获取登录用户
@@ -41,12 +43,29 @@ public class BlogController {
         return Result.ok(blog.getId());
     }
 
+    /**
+     * 查询探店笔记详情
+     * @param id 探店笔记id
+     * @return
+     */
+    @GetMapping("/{id}")
+    public Result queryBlogById(@PathVariable("id") Long id){
+        return blogService.queryBlogById(id);
+    }
+
+    /**
+     * 对指定的blog点赞
+     * @param id
+     * @return
+     */
     @PutMapping("/like/{id}")
     public Result likeBlog(@PathVariable("id") Long id) {
-        // 修改点赞数量
-        blogService.update()
-                .setSql("liked = liked + 1").eq("id", id).update();
-        return Result.ok();
+        //// 修改点赞数量
+        //blogService.update()
+        //        .setSql("liked = liked + 1").eq("id", id).update();
+        //return Result.ok();
+
+        return blogService.likeBlog(id);
     }
 
     @GetMapping("/of/me")
@@ -63,19 +82,16 @@ public class BlogController {
 
     @GetMapping("/hot")
     public Result queryHotBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
-        // 根据用户查询
-        Page<Blog> page = blogService.query()
-                .orderByDesc("liked")
-                .page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
-        // 获取当前页数据
-        List<Blog> records = page.getRecords();
-        // 查询用户
-        records.forEach(blog -> {
-            Long userId = blog.getUserId();
-            User user = userService.getById(userId);
-            blog.setName(user.getNickName());
-            blog.setIcon(user.getIcon());
-        });
-        return Result.ok(records);
+        return blogService.queryHotBlog(current);
+    }
+
+    /**
+     * 查看选中blog下的点赞排行榜
+     * @param id
+     * @return
+     */
+    @GetMapping("/likes/{id}")
+    public Result queryBlogLikes(@PathVariable("id") Long id){
+        return blogService.queryBlogLikes(id);
     }
 }

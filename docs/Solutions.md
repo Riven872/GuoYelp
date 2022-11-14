@@ -27,4 +27,8 @@
                           .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString())); //所有字段的类型转为string
     ```
 
-    
+
+3、查询点赞排行榜时，查询的结果顺序与预期顺序不同
+
+- 问题：在进行数据库查询时用到了IN(5,4,3,2,1)语句，此时查询出的结果并不会按照传入的筛选条件进行排序
+- 措施：采用ORDER BY FIELD进行处理，如`WHERE id IN (5,4,3,2,1) ORDER BY FIELD(id,5,4,3,2,1)`，将字段名和要筛选条件一起传入到FIELD中

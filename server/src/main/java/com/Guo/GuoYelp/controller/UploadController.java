@@ -12,11 +12,19 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
+/**
+ * 探店笔记中图片的上传和删除
+ */
 @Slf4j
 @RestController
 @RequestMapping("upload")
 public class UploadController {
 
+    /**
+     * 发布探店笔记时的上传图片
+     * @param image
+     * @return
+     */
     @PostMapping("blog")
     public Result uploadImage(@RequestParam("file") MultipartFile image) {
         try {
@@ -34,6 +42,11 @@ public class UploadController {
         }
     }
 
+    /**
+     * 删除图片
+     * @param filename
+     * @return
+     */
     @GetMapping("/blog/delete")
     public Result deleteBlogImg(@RequestParam("name") String filename) {
         File file = new File(SystemConstants.IMAGE_UPLOAD_DIR, filename);
@@ -44,6 +57,11 @@ public class UploadController {
         return Result.ok();
     }
 
+    /**
+     * 上传图片时，创建图片的保存地址和图片名称
+     * @param originalFilename
+     * @return
+     */
     private String createNewFileName(String originalFilename) {
         // 获取后缀
         String suffix = StrUtil.subAfter(originalFilename, ".", true);
