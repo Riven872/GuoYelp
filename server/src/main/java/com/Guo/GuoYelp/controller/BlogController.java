@@ -45,16 +45,18 @@ public class BlogController {
 
     /**
      * 查询探店笔记详情
+     *
      * @param id 探店笔记id
      * @return
      */
     @GetMapping("/{id}")
-    public Result queryBlogById(@PathVariable("id") Long id){
+    public Result queryBlogById(@PathVariable("id") Long id) {
         return blogService.queryBlogById(id);
     }
 
     /**
      * 对指定的blog点赞
+     *
      * @param id
      * @return
      */
@@ -87,11 +89,26 @@ public class BlogController {
 
     /**
      * 查看选中blog下的点赞排行榜
+     *
      * @param id
      * @return
      */
     @GetMapping("/likes/{id}")
-    public Result queryBlogLikes(@PathVariable("id") Long id){
+    public Result queryBlogLikes(@PathVariable("id") Long id) {
         return blogService.queryBlogLikes(id);
+    }
+
+    /**
+     * 分页查询用户主页中的笔记
+     *
+     * @param current 页码
+     * @param id      用户id
+     * @return
+     */
+    @GetMapping("/of/user")
+    public Result queryUserBlogByUserId(
+            @RequestParam(value = "current", defaultValue = "1") Integer current,
+            @RequestParam("id") Long id) {
+        return blogService.queryUserBlogByUserId(current, id);
     }
 }

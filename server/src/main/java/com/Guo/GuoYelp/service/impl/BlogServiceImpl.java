@@ -156,6 +156,19 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     /**
+     * 分页查询用户主页中的笔记
+     *
+     * @param current 当前页码
+     * @param id      用户id
+     * @return
+     */
+    @Override
+    public Result queryUserBlogByUserId(Integer current, Long id) {
+        Page<Blog> page = this.query().eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+        return Result.ok(page.getRecords());
+    }
+
+    /**
      * 查询Blog中对应的用户信息
      *
      * @param blog

@@ -29,4 +29,6 @@ public interface IUserService extends IService<User> {
      * @return
      */
     Result login(LoginFormDTO loginForm, HttpSession session);
+
+    Result getUserById(Long id);
 }
