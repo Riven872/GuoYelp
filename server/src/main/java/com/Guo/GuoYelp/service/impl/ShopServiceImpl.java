@@ -9,14 +9,25 @@ import com.Guo.GuoYelp.mapper.ShopMapper;
 import com.Guo.GuoYelp.service.IShopService;
 import com.Guo.GuoYelp.utils.CacheClient;
 import com.Guo.GuoYelp.utils.RedisData;
+import com.Guo.GuoYelp.utils.SystemConstants;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.springframework.data.geo.Distance;
+import org.springframework.data.geo.GeoResult;
+import org.springframework.data.geo.GeoResults;
+import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.domain.geo.GeoReference;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -24,9 +35,7 @@ import java.util.concurrent.TimeUnit;
 import static com.Guo.GuoYelp.utils.RedisConstants.*;
 
 /**
- * <p>
- * 服务实现类
- * </p>
+ * 店铺查询
  */
 @Service
 public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IShopService {
@@ -91,6 +100,72 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         stringRedisTemplate.delete(CACHE_SHOP_KEY + shop.getId());
 
         return Result.ok(shop.getId());
+    }
+
+    /**
+     * 根据商铺类型分页查询商铺信息
+     *
+     * @param typeId  商铺类型
+     * @param current 页码
+     * @param x       当前用户所处位置的经度
+     * @param y       当前用户所处位置的纬度
+     * @return 商铺列表
+     */
+    @Override
+    public Result queryShopByType(Integer typeId, Integer current, Double x, Double y) {
+        //判断是否需要坐标查询
+        if (x == null || y == null) {
+            //不需要根据坐标查询，则直接查数据库
+            Page<Shop> page = this.query()
+                    .eq("type_id", typeId)
+                    .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
+            // 返回数据
+            return Result.ok(page.getRecords());
+        }
+        //计算分页参数
+        int from = (current - 1) * SystemConstants.DEFAULT_PAGE_SIZE;
+        int end = current * SystemConstants.DEFAULT_PAGE_SIZE;
+        //查询Redis，并按照距离排序、分页
+        String key = SHOP_GEO_KEY + typeId;
+        GeoResults<RedisGeoCommands.GeoLocation<String>> results = stringRedisTemplate.opsForGeo().search(
+                key,
+                GeoReference.fromCoordinate(x, y),
+                new Distance(5000),
+                RedisGeoCommands.GeoSearchCommandArgs.newGeoSearchArgs().includeDistance().limit(end));
+        if (results == null) {
+            //没有查到数据，则返回空
+            return Result.ok(Collections.emptyList());
+        }
+        //进行解析，得到id和距离
+        List<GeoResult<RedisGeoCommands.GeoLocation<String>>> list = results.getContent();
+        //如果skip之后没有值了，则没必要再进行分页查询了，因为没有数据了
+        if (list.size() < from) {
+            return Result.ok(Collections.emptyList());
+        }
+        //逻辑分页（假分页）
+        ArrayList<Long> ids = new ArrayList<>(list.size());//收集所有的id
+        HashMap<String, Distance> distanceMap = new HashMap<>(list.size());//将id与距离一一对应
+        list.stream().skip(from).forEach(result -> {
+            //获得店铺id
+            String shopIdStr = result.getContent().getName();
+            ids.add(Long.valueOf(shopIdStr));
+            //获得距离
+            Distance distance = result.getDistance();
+            distanceMap.put(shopIdStr, distance);
+        });
+        //根据id查询店铺，不能直接用list()，会打乱排序
+        String idStr = StrUtil.join(",", ids);
+        List<Shop> shops = this.query().in("id", ids).last("ORDER BY FIELD(id, " + idStr + ")").list();
+        //装配每个店铺的距离
+        shops.forEach(shop -> {
+            //从HashMap中找到对应的距离
+            String K = shop.getId().toString();//hashmap中的key
+            Distance V = distanceMap.get(K);//hashmap中的value
+            double shopDistance = V.getValue();
+            shop.setDistance(shopDistance);
+        });
+        //返回店铺
+        return Result.ok(shops);
     }
 
     /**

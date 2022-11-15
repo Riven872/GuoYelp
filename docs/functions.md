@@ -535,3 +535,38 @@
 
 
 
+##### 八、附近商户模块
+
+###### 1、GEO数据结构
+
+- 允许存储地理坐标信息，帮助我们根据经纬度来检索数据
+- 底层是ZSET
+
+###### 2、附近商户搜索
+
+- 按照商户类型做分组，类型相同的商户作为一组，以typeId为key存入同一个GEO集合中即可
+
+###### 3、店铺按距离查询
+
+- 判断是否需要根据坐标查询，如果不需要直接从数据库中去查
+
+- 计算分页的参数
+
+- 查询Redis中商铺的信息，查询Redis，并按照距离排序、分页，得到商铺id和距离
+
+- 解析出id并查出店铺信息，返回数据
+
+    ```java
+    stringRedisTemplate
+        .opsForGeo()
+        .search(
+        key, //key值
+        GeoReference.fromCoordinate(x, y), //圆心坐标
+        new Distance(5000), //半径范围，不指定单位则默认为米
+        RedisGeoCommands.GeoSearchCommandArgs.newGeoSearchArgs().includeDistance().limit(end)); //返回值中包括距离圆心的距离，limit默认只能从0开始，因此类似于假分页，只能指定要从0开始查多少条
+    
+    //GEOSEARCH key BYLONLAT x y BYRADIUS 10 WITHDISTANCE
+    ```
+
+    
+
