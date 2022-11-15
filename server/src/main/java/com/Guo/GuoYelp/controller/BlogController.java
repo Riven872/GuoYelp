@@ -33,14 +33,7 @@ public class BlogController {
      */
     @PostMapping
     public Result saveBlog(@RequestBody Blog blog) {
-        // 获取登录用户
-        UserDTO user = UserHolder.getUser();
-        //前端已经提交了商铺id、标题、图片、内容，因此这里只需要再添加用户id即可保存
-        blog.setUserId(user.getId());
-        // 保存探店博文
-        blogService.save(blog);
-        // 返回id
-        return Result.ok(blog.getId());
+        return blogService.saveBlog(blog);
     }
 
     /**
@@ -110,5 +103,19 @@ public class BlogController {
             @RequestParam(value = "current", defaultValue = "1") Integer current,
             @RequestParam("id") Long id) {
         return blogService.queryUserBlogByUserId(current, id);
+    }
+
+    /**
+     * 滚动分页显示收件箱中的所有笔记
+     *
+     * @param max    当前时间戳或上一次查询的最小时间戳作为下一次查询的最大值
+     * @param offset 偏移量，跳过的元素个数，第一次查询时没有偏移量
+     * @return
+     */
+    @GetMapping("/of/follow")
+    public Result queryBlogOfFollow(
+            @RequestParam("lastId") Long max,
+            @RequestParam(value = "offset", defaultValue = "0") Integer offset) {
+        return blogService.queryBlogOfFollow(max, offset);
     }
 }

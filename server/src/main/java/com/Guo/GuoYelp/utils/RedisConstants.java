@@ -16,7 +16,7 @@ public class RedisConstants {
 
     public static final String SECKILL_STOCK_KEY = "seckill:stock:";//秒杀优惠券的库存量前缀
     public static final String BLOG_LIKED_KEY = "blog:liked:";//判断用户是否已经点赞blog的前缀
-    public static final String FEED_KEY = "feed:";
+    public static final String FEED_KEY = "feed:";//推送到粉丝收件箱时，粉丝收件箱的前缀
     public static final String SHOP_GEO_KEY = "shop:geo:";
     public static final String USER_SIGN_KEY = "sign:";
 }

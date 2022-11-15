@@ -4,11 +4,14 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.Guo.GuoYelp.dto.Result;
+import com.Guo.GuoYelp.dto.ScrollResult;
 import com.Guo.GuoYelp.dto.UserDTO;
 import com.Guo.GuoYelp.entity.Blog;
+import com.Guo.GuoYelp.entity.Follow;
 import com.Guo.GuoYelp.entity.User;
 import com.Guo.GuoYelp.mapper.BlogMapper;
 import com.Guo.GuoYelp.service.IBlogService;
+import com.Guo.GuoYelp.service.IFollowService;
 import com.Guo.GuoYelp.service.IUserService;
 import com.Guo.GuoYelp.utils.SystemConstants;
 import com.Guo.GuoYelp.utils.UserHolder;
@@ -16,16 +19,19 @@ import com.baomidou.mybatisplus.extension.conditions.query.QueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.Guo.GuoYelp.utils.RedisConstants.BLOG_LIKED_KEY;
+import static com.Guo.GuoYelp.utils.RedisConstants.FEED_KEY;
 
 /**
  * 探店模块
@@ -35,6 +41,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Resource
     private IUserService userService;
+
+    @Resource
+    private IFollowService followService;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -166,6 +175,93 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     public Result queryUserBlogByUserId(Integer current, Long id) {
         Page<Blog> page = this.query().eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
         return Result.ok(page.getRecords());
+    }
+
+    /**
+     * 保存笔记
+     *
+     * @param blog
+     * @return
+     */
+    @Override
+    public Result saveBlog(Blog blog) {
+        // 获取登录用户
+        UserDTO user = UserHolder.getUser();
+        //前端已经提交了商铺id、标题、图片、内容，因此这里只需要再添加用户id即可保存
+        blog.setUserId(user.getId());
+        // 保存探店笔记
+        boolean isSuccess = this.save(blog);
+        if (!isSuccess) {
+            return Result.fail("新增笔记失败");
+        }
+        //查询笔记作者所有的粉丝
+        List<Follow> follows = followService.query().eq("follow_user_id", user.getId()).list();
+        //推送笔记id给所有粉丝
+        follows.forEach(follow -> {
+            //获取粉丝id
+            Long userId = follow.getUserId();
+            //推送到粉丝收件箱
+            String key = FEED_KEY + userId;
+            stringRedisTemplate.opsForZSet().add(key, blog.getId().toString(), System.currentTimeMillis());
+        });
+        return Result.ok(blog.getId());
+    }
+
+    /**
+     * 滚动分页显示收件箱中的所有笔记
+     *
+     * @param max    当前时间戳或上一次查询的最小时间戳作为下一次查询的最大值
+     * @param offset 偏移量，跳过的元素个数，第一次查询时没有偏移量
+     * @return
+     */
+    @Override
+    public Result queryBlogOfFollow(Long max, Integer offset) {
+        //查询当前用户
+        Long userId = UserHolder.getUser().getId();
+        //查询收件箱
+        String key = FEED_KEY + userId;
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate
+                .opsForZSet()
+                .reverseRangeByScoreWithScores(key, 0, max, offset, 3L);
+        if (typedTuples == null || typedTuples.isEmpty()) {
+            return Result.ok();
+        }
+        //保存ids
+        ArrayList<Long> ids = new ArrayList<>(typedTuples.size());
+        //保存最小时间
+        long minTime = 0L;
+        //计算offset
+        int os = 1;
+        //解析数据：笔记id、minTime(时间戳)、offset
+        for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+            //获取id
+            ids.add(Long.valueOf(typedTuple.getValue()));
+            //获取score（时间戳）,最后取出来的才是最小的时间
+            long time = typedTuple.getScore().longValue();
+            //计算offset时，只需要计算与最小时间相同的个数
+            if (time == minTime) {
+                os++;
+            } else {
+                //如果不为最小时间，则重置重新计算
+                minTime = time;
+                os = 1;
+            }
+        }
+        //根据id查询blog（不能直接查询，会导致查出来的顺序错乱）
+        String idStr = StrUtil.join(",", ids);
+        List<Blog> blogs = this.query().in("id", ids).last("ORDER BY FIELD(id, " + idStr + ")").list();
+        blogs.forEach(blog -> {
+            //查询与blog有关的用户并将信息放到Blog中
+            queryBlogUser(blog);
+            //查询blog是否被点赞
+            isBlogLiked(blog);
+        });
+        //封装数据并返回
+        ScrollResult r = new ScrollResult();
+        r.setList(blogs);
+        r.setMinTime(minTime);
+        r.setOffset(offset);
+        return Result.ok(r);
     }
 
     /**
