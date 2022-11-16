@@ -14,9 +14,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 
 /**
- * <p>
- * 前端控制器
- * </p>
+ * 用户模块
  */
 @Slf4j
 @RestController
@@ -40,36 +38,39 @@ public class UserController {
 
     /**
      * 登录功能
+     *
      * @param loginForm 登录参数，包含手机号、验证码；或者手机号、密码
      */
     @PostMapping("/login")
-    public Result login(@RequestBody LoginFormDTO loginForm, HttpSession session){
+    public Result login(@RequestBody LoginFormDTO loginForm, HttpSession session) {
         //实现登录功能
         return userService.login(loginForm, session);
     }
 
     /**
      * 登出功能
+     *
      * @return 无
      */
     @PostMapping("/logout")
-    public Result logout(){
+    public Result logout() {
         // TODO 实现登出功能
         return Result.fail("功能未完成");
     }
 
     /**
      * 获取当前登录的用户信息
+     *
      * @return
      */
     @GetMapping("/me")
-    public Result me(){
+    public Result me() {
         //获取当前登录的用户并返回
         return Result.ok(UserHolder.getUser());
     }
 
     @GetMapping("/info/{id}")
-    public Result info(@PathVariable("id") Long userId){
+    public Result info(@PathVariable("id") Long userId) {
         // 查询详情
         UserInfo info = userInfoService.getById(userId);
         if (info == null) {
@@ -84,11 +85,31 @@ public class UserController {
 
     /**
      * 查看用户主页并返回用户信息
+     *
      * @param id
      * @return
      */
     @GetMapping("{id}")
-    public Result getUserById(@PathVariable("id") Long id){
+    public Result getUserById(@PathVariable("id") Long id) {
         return userService.getUserById(id);
+    }
+
+    /**
+     * 用户签到
+     *
+     * @return
+     */
+    @PostMapping("/sign")
+    public Result sign() {
+        return userService.sign();
+    }
+
+    /**
+     * 统计签到次数
+     * @return
+     */
+    @GetMapping("/sign/count")
+    public Result signCount(){
+        return userService.signCount();
     }
 }

@@ -8,14 +8,13 @@ import com.Guo.GuoYelp.entity.User;
 import javax.servlet.http.HttpSession;
 
 /**
- * <p>
- *  服务类
- * </p>
+ * 用户管理
  */
 public interface IUserService extends IService<User> {
 
     /**
      * 发送验证码
+     *
      * @param phone
      * @param session
      * @return
@@ -24,6 +23,7 @@ public interface IUserService extends IService<User> {
 
     /**
      * 账号登录
+     *
      * @param loginForm
      * @param session
      * @return
@@ -31,4 +31,8 @@ public interface IUserService extends IService<User> {
     Result login(LoginFormDTO loginForm, HttpSession session);
 
     Result getUserById(Long id);
+
+    Result sign();
+
+    Result signCount();
 }

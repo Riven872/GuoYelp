@@ -8,12 +8,14 @@ import com.Guo.GuoYelp.dto.LoginFormDTO;
 import com.Guo.GuoYelp.dto.Result;
 import com.Guo.GuoYelp.dto.UserDTO;
 import com.Guo.GuoYelp.utils.RegexUtils;
+import com.Guo.GuoYelp.utils.UserHolder;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.Guo.GuoYelp.entity.User;
 import com.Guo.GuoYelp.mapper.UserMapper;
 import com.Guo.GuoYelp.service.IUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import com.Guo.GuoYelp.utils.SystemConstants;
@@ -21,7 +23,11 @@ import com.Guo.GuoYelp.utils.SystemConstants;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -121,6 +127,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     /**
      * 查看用户主页并返回用户信息
+     *
      * @param id
      * @return
      */
@@ -132,6 +139,71 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
         return Result.ok(userDTO);
+    }
+
+    /**
+     * 用户签到
+     *
+     * @return
+     */
+    @Override
+    public Result sign() {
+        //获取当前登录用户
+        Long userId = UserHolder.getUser().getId();
+        //获取当前日期
+        LocalDateTime currentTime = LocalDateTime.now();
+        //拼接key
+        String keySuffix = currentTime.format(DateTimeFormatter.ofPattern(":yyyyMM"));//日期前缀
+        String key = USER_SIGN_KEY + userId + keySuffix;
+        //获取今天是该月的第几天
+        int dayOfMonth = currentTime.getDayOfMonth();
+        //写入Redis，签到成功则为true
+        stringRedisTemplate.opsForValue().setBit(key, dayOfMonth - 1, true);
+        return Result.ok();
+    }
+
+    /**
+     * 统计签到次数
+     *
+     * @return
+     */
+    @Override
+    public Result signCount() {
+        //获取当前登录用户
+        Long userId = UserHolder.getUser().getId();
+        //获取当前日期
+        LocalDateTime currentTime = LocalDateTime.now();
+        //拼接key
+        String keySuffix = currentTime.format(DateTimeFormatter.ofPattern(":yyyyMM"));//日期前缀
+        String key = USER_SIGN_KEY + userId + keySuffix;
+        //获取今天是该月的第几天
+        int dayOfMonth = currentTime.getDayOfMonth();
+        //获取本月到今天为止的所有签到次数
+        List<Long> result = stringRedisTemplate
+                .opsForValue()
+                .bitField(
+                        key,
+                        BitFieldSubCommands.create().get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0));
+        //没有签到结果（因为只get了一次，因此List中只有一个元素）
+        if (result == null || result.isEmpty() || result.get(0) == null) {
+            return Result.ok();
+        }
+        //循环遍历处理数据
+        Long num = result.get(0);
+        int count = 0;//计数器
+        //每个数字与1做与运算，得到数字的最后一个bit位，且判断该bit位是否为0
+        while (true) {
+            if ((num & 1) == 0) {
+                //如果没有0，则说明未签到
+                break;
+            } else {
+                //如果不为0，则说明已签到
+                count++;
+            }
+            //无符号右移1位，并将最后一位赋值给num
+            num >>>= 1;
+        }
+        return Result.ok(count);
     }
 
     /**
