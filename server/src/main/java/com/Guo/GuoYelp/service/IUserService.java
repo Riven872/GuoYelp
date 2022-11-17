@@ -5,6 +5,7 @@ import com.Guo.GuoYelp.dto.Result;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.Guo.GuoYelp.entity.User;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 /**
@@ -35,4 +36,6 @@ public interface IUserService extends IService<User> {
     Result sign();
 
     Result signCount();
+
+    Result logout(HttpServletRequest request);
 }

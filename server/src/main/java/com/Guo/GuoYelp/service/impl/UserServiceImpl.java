@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import com.Guo.GuoYelp.utils.SystemConstants;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import java.time.LocalDate;
@@ -205,6 +206,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         return Result.ok(count);
     }
+
+    @Override
+    public Result logout(HttpServletRequest request) {
+        //获取当前用户的token
+        String token = request.getHeader("authorization");
+        //移除Redis中的token
+        stringRedisTemplate.delete(LOGIN_USER_KEY + token);
+        //从当前线程中删除用户
+        UserHolder.removeUser();
+        return Result.ok();
+    }
+
 
     /**
      * 根据手机号创建用户
