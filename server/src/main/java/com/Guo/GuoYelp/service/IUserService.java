@@ -38,4 +38,6 @@ public interface IUserService extends IService<User> {
     Result signCount();
 
     Result logout(HttpServletRequest request);
+
+    String foo();
 }
